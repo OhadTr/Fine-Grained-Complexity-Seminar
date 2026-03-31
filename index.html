@@ -1,612 +1,205 @@
-import React, { useEffect, useMemo, useState } from "react";
-
-/**
- * Minimal live version.
- *
- * 1) Create a Supabase project.
- * 2) In SQL Editor, run:
- *
- * create table public.claims (
- *   slot_id text primary key,
- *   student_name text not null,
- *   created_at timestamptz not null default now()
- * );
- *
- * alter table public.claims enable row level security;
- *
- * create policy "public can read claims"
- * on public.claims
- * for select
- * using (true);
- *
- * create policy "public can insert claims"
- * on public.claims
- * for insert
- * with check (char_length(trim(student_name)) > 0);
- *
- * 3) Fill in the two constants below.
- */
-const SUPABASE_URL = "https://zdizzifeuqzrqxjxasen.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_xhDks_hxq2ouhD2-8WhkIg_SYZfAmSp";
-const ACCESS_CODE = "FGS_IS_FUN";
-
-const PAPERS = [
-  {
-    id: "2026-04-29-1",
-    date: "April 29, 2026",
-    number: 1,
-    title: "A New Algorithm for Optimal 2-Constraint Satisfaction and Its Implications",
-    citation: "R. Williams. ICALP 2004 / TCS 2005.",
-    link: "https://eccc.weizmann.ac.il/eccc-reports/2004/TR04-032/index.html",
-  },
-  {
-    id: "2026-04-29-2",
-    date: "April 29, 2026",
-    number: 2,
-    title: "Edit Distance Cannot Be Computed in Strongly Subquadratic Time (unless SETH is false)",
-    citation: "A. Backurs, P. Indyk. STOC 2015.",
-    link: "https://arxiv.org/abs/1412.0348",
-  },
-  {
-    id: "2026-05-06-1",
-    date: "May 6, 2026",
-    number: 3,
-    title: "Subcubic Equivalences Between Path, Matrix, and Triangle Problems",
-    citation: "V. Vassilevska Williams, R. Williams. FOCS 2010.",
-    link: "https://people.csail.mit.edu/rrw/tria-mmult.pdf",
-  },
-  {
-    id: "2026-05-06-2",
-    date: "May 6, 2026",
-    number: 4,
-    title: "Subcubic Equivalences Between Graph Centrality Problems, APSP and Diameter",
-    citation: "A. Abboud, F. Grandoni, V. Vassilevska Williams. SODA 2015 / TALG 2022.",
-    link: "https://people.idsia.ch/~grandoni/Pubblicazioni/AGV22talg.pdf",
-  },
-  {
-    id: "2026-05-13-1",
-    date: "May 13, 2026",
-    number: 5,
-    title: "Tight Hardness for Shortest Cycles and Paths in Sparse Graphs",
-    citation: "A. Lincoln, V. Vassilevska Williams, R. Williams. SODA 2018.",
-    link: "https://arxiv.org/abs/1712.08147",
-  },
-  {
-    id: "2026-05-13-2",
-    date: "May 13, 2026",
-    number: 6,
-    title: "On a Class of O(n^2) Problems in Computational Geometry",
-    citation: "A. Gajentaan, M. Overmars. Computational Geometry, 1995.",
-    link: "https://www.sciencedirect.com/science/article/pii/0925772195000222",
-  },
-  {
-    id: "2026-05-20-1",
-    date: "May 20, 2026",
-    number: 7,
-    title: "Threesomes, Degenerates, and Love Triangles",
-    citation: "A. Gronlund, S. Pettie. FOCS 2014.",
-    link: "https://arxiv.org/abs/1404.0799",
-  },
-  {
-    id: "2026-05-20-2",
-    date: "May 20, 2026",
-    number: 8,
-    title: "Why Walking the Dog Takes Time: Frechet Distance Has No Strongly Subquadratic Algorithms Unless SETH Fails",
-    citation: "K. Bringmann. FOCS 2014.",
-    link: "https://arxiv.org/abs/1404.1448",
-  },
-  {
-    id: "2026-05-27-1",
-    date: "May 27, 2026",
-    number: 9,
-    title: "Fast Approximation Algorithms for the Diameter and Radius of Sparse Graphs",
-    citation: "L. Roditty, V. Vassilevska Williams. STOC 2013.",
-    link: "https://people.csail.mit.edu/virgi/diam.pdf",
-  },
-  {
-    id: "2026-05-27-2",
-    date: "May 27, 2026",
-    number: 10,
-    title: "Matching Triangles and Basing Hardness on an Extremely Popular Conjecture",
-    citation: "A. Abboud, V. Vassilevska Williams, H. Yu. STOC 2015.",
-    link: "https://arxiv.org/abs/1504.01431",
-  },
-  {
-    id: "2026-06-03-1",
-    date: "June 3, 2026",
-    number: 11,
-    title: "On Problems Equivalent to (min,+)-Convolution",
-    citation: "Cygan, Mucha, Wegrzycki, Wlodarczyk. ICALP 2017.",
-    link: "https://arxiv.org/abs/1702.07669",
-  },
-  {
-    id: "2026-06-03-2",
-    date: "June 3, 2026",
-    number: 12,
-    title: "Towards Polynomial Lower Bounds for Dynamic Problems",
-    citation: "M. Patrascu. STOC 2010.",
-    link: "https://people.csail.mit.edu/mip/papers/dynlb/paper.pdf",
-  },
-  {
-    id: "2026-06-10-1",
-    date: "June 10, 2026",
-    number: 13,
-    title: "Popular Conjectures Imply Strong Lower Bounds for Dynamic Problems",
-    citation: "A. Abboud, V. Vassilevska Williams. FOCS 2014.",
-    link: "https://arxiv.org/abs/1402.0054",
-  },
-  {
-    id: "2026-06-10-2",
-    date: "June 10, 2026",
-    number: 14,
-    title: "Unifying and Strengthening Hardness for Dynamic Problems via the Online Matrix-Vector Multiplication Conjecture",
-    citation: "M. Henzinger, S. Krinninger, D. Nanongkai, T. Saranurak. STOC 2015.",
-    link: "https://arxiv.org/abs/1504.01799",
-  },
-  {
-    id: "2026-06-17-1",
-    date: "June 17, 2026",
-    number: 15,
-    title: "If the Current Clique Algorithms Are Optimal, So Is Valiant Parser",
-    citation: "A. Abboud, A. Backurs, V. Vassilevska Williams. FOCS 2015 / JACM 2018.",
-    link: "https://arxiv.org/abs/1508.00151",
-  },
-  {
-    id: "2026-06-17-2",
-    date: "June 17, 2026",
-    number: 16,
-    title: "Fast and Deterministic Constant Factor Approximation Algorithms for LCS Imply New Circuit Lower Bounds",
-    citation: "A. Abboud, A. Rubinstein. ITCS 2018.",
-    link: "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ITCS.2018.35",
-  },
-  {
-    id: "2026-06-24-1",
-    date: "June 24, 2026",
-    number: 17,
-    title: "A Near-Linear Pseudopolynomial Time Algorithm for Subset Sum",
-    citation: "K. Bringmann. SODA 2017.",
-    link: "https://arxiv.org/abs/1610.04712",
-  },
-  {
-    id: "2026-06-24-2",
-    date: "June 24, 2026",
-    number: 18,
-    title: "Hardness of Approximate Nearest Neighbor Search",
-    citation: "A. Rubinstein. STOC 2018.",
-    link: "https://arxiv.org/abs/1803.00904",
-  },
-  {
-    id: "2026-07-01-1",
-    date: "July 1, 2026",
-    number: 19,
-    title: "Distributed PCP Theorems for Hardness of Approximation in P",
-    citation: "A. Abboud, A. Rubinstein, R. Williams. FOCS 2017.",
-    link: "https://arxiv.org/abs/1706.06407",
-  },
-  {
-    id: "2026-07-01-2",
-    date: "July 1, 2026",
-    number: 20,
-    title: "Hardness of Approximation in P via Short Cycle Removal",
-    citation: "A. Abboud, K. Bringmann, S. Khoury, O. Zamir. STOC 2022.",
-    link: "https://arxiv.org/abs/2204.10465",
-  },
-  {
-    id: "2026-07-08-1",
-    date: "July 8, 2026",
-    number: 21,
-    title: "More Consequences of Falsifying SETH and the Orthogonal Vectors Conjecture",
-    citation: "A. Abboud, K. Bringmann, H. Dell, J. Nederlof. STOC 2018.",
-    link: "https://arxiv.org/abs/1805.08554",
-  },
-  {
-    id: "2026-07-08-2",
-    date: "July 8, 2026",
-    number: 22,
-    title: "Nondeterministic Extensions of the Strong Exponential Time Hypothesis and Consequences for Non-Reducibility",
-    citation: "M. Carmosino, J. Gao, R. Impagliazzo, I. Mihajlin, R. Paturi, S. Schneider. ITCS 2016.",
-    link: "https://arxiv.org/abs/1510.08565",
-  },
-];
-
-const DATE_ORDER = [
-  "April 29, 2026",
-  "May 6, 2026",
-  "May 13, 2026",
-  "May 20, 2026",
-  "May 27, 2026",
-  "June 3, 2026",
-  "June 10, 2026",
-  "June 17, 2026",
-  "June 24, 2026",
-  "July 1, 2026",
-  "July 8, 2026",
-];
-
-function ready() {
-  return (
-    SUPABASE_URL &&
-    SUPABASE_ANON_KEY &&
-    !SUPABASE_URL.includes("PASTE_YOUR_") &&
-    !SUPABASE_ANON_KEY.includes("PASTE_YOUR_")
-  );
-}
-
-function apiUrl(path) {
-  return `${SUPABASE_URL}/rest/v1/${path}`;
-}
-
-async function fetchClaims() {
-  const response = await fetch(apiUrl("claims?select=slot_id,student_name,created_at"), {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to load claims.");
-  }
-
-  return response.json();
-}
-
-async function insertClaim(slotId, studentName) {
-  const response = await fetch(apiUrl("claims"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify({
-      slot_id: slotId,
-      student_name: studentName,
-    }),
-  });
-
-  if (response.ok) {
-    return;
-  }
-
-  if (response.status === 409) {
-    throw new Error("That paper is already taken.");
-  }
-
-  throw new Error("Could not save claim.");
-}
-
-function pillStyle(background) {
-  return {
-    display: "inline-block",
-    padding: "4px 10px",
-    borderRadius: 999,
-    fontSize: 12,
-    border: "1px solid #d1d5db",
-    background,
-  };
-}
-
-export default function PaperSignupSite() {
-  const [claims, setClaims] = useState([]);
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [submittingId, setSubmittingId] = useState("");
-
-  async function load() {
-    if (!ready()) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const data = await fetchClaims();
-      setClaims(Array.isArray(data) ? data : []);
-    } catch (error) {
-      setStatus(error.message || "Failed to load.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-
-    if (!ready()) return;
-
-    const id = window.setInterval(load, 10000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  const claimsBySlot = useMemo(() => {
-    const map = new Map();
-    claims.forEach((claim) => {
-      map.set(claim.slot_id, claim);
-    });
-    return map;
-  }, [claims]);
-
-  async function claimPaper(paper) {
-    const trimmedName = name.trim();
-    const trimmedCode = code.trim();
-    if (!trimmedName) {
-      setStatus("Enter your name first.");
-      return;
-    }
-
-    if (!trimmedCode) {
-      setStatus("Enter the code first.");
-      return;
-    }
-
-    if (trimmedCode !== ACCESS_CODE) {
-      setStatus("Wrong code.");
-      return;
-    }
-
-    if (!ready()) {
-      setStatus("Add your Supabase URL and anon key in the file first.");
-      return;
-    }
-
-    if (claimsBySlot.has(paper.id)) {
-      setStatus("That paper is already taken.");
-      return;
-    }
-
-    try {
-      setSubmittingId(paper.id);
-      setStatus("");
-      await insertClaim(paper.id, trimmedName);
-      setName("");
-      setCode("");
-      setStatus("Paper claimed.");
-      await load();
-    } catch (error) {
-      setStatus(error.message || "Could not save claim.");
-      await load();
-    } finally {
-      setSubmittingId("");
-    }
-  }
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f8fafc",
-        padding: 24,
-        fontFamily: "Arial, sans-serif",
-        color: "#0f172a",
-      }}
-    >
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.5fr 1fr",
-            gap: 16,
-            marginBottom: 16,
-          }}
-        >
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 16,
-              padding: 20,
-            }}
-          >
-            <div style={{ fontSize: 32, fontWeight: 700, marginBottom: 16 }}>
-              Seminar paper sign-up
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seminar paper sign-up</title>
+    <style>
+      body { margin: 0; font-family: Arial, sans-serif; background: #f8fafc; color: #0f172a; }
+      .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+      .top { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; margin-bottom: 16px; }
+      .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; }
+      .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .stat { border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; }
+      .label { font-size: 13px; color: #64748b; }
+      .value { font-size: 32px; font-weight: 700; }
+      h1,h2,h3,p { margin: 0; }
+      h1 { font-size: 32px; margin-bottom: 16px; }
+      h2 { font-size: 22px; margin-bottom: 16px; }
+      h3 { font-size: 24px; margin-bottom: 16px; }
+      .field { margin-bottom: 12px; }
+      .field label { display: block; font-size: 14px; margin-bottom: 6px; }
+      .field input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #cbd5e1; box-sizing: border-box; }
+      .status { margin-bottom: 16px; }
+      .papers { display: grid; gap: 12px; }
+      .paper { border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; }
+      .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+      .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; border: 1px solid #d1d5db; background: #fff; }
+      .pill.available { background: #dcfce7; }
+      .pill.taken { background: #e5e7eb; }
+      .paper-title { font-size: 20px; font-weight: 600; line-height: 1.35; margin-bottom: 6px; }
+      .citation { font-size: 14px; color: #475569; margin-bottom: 8px; }
+      .linkrow { margin-bottom: 10px; }
+      a { color: #1d4ed8; }
+      button { padding: 10px 14px; border-radius: 12px; border: 1px solid #cbd5e1; background: #0f172a; color: white; cursor: pointer; font-weight: 600; }
+      button:disabled { background: #e2e8f0; color: #475569; cursor: not-allowed; }
+      @media (max-width: 800px) { .top, .paper { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <div class="card">
+          <h1>Seminar paper sign-up</h1>
+          <div class="stats">
+            <div class="stat">
+              <div class="label">Total papers</div>
+              <div class="value" id="total-papers"></div>
             </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: 12,
-              }}
-            >
-              <div
-                style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 14,
-                  padding: 16,
-                }}
-              >
-                <div style={{ fontSize: 13, color: "#64748b" }}>Total papers</div>
-                <div style={{ fontSize: 32, fontWeight: 700 }}>{PAPERS.length}</div>
-              </div>
-              <div
-                style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 14,
-                  padding: 16,
-                }}
-              >
-                <div style={{ fontSize: 13, color: "#64748b" }}>Available</div>
-                <div style={{ fontSize: 32, fontWeight: 700 }}>{PAPERS.length - claims.length}</div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 16,
-              padding: 20,
-            }}
-          >
-            <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>
-              Claim a paper
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: "block", fontSize: 14, marginBottom: 6 }}>
-                Name
-              </label>
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Your full name"
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  borderRadius: 10,
-                  border: "1px solid #cbd5e1",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: "block", fontSize: 14, marginBottom: 6 }}>
-                Add code
-              </label>
-              <input
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                placeholder=""
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  borderRadius: 10,
-                  border: "1px solid #cbd5e1",
-                  boxSizing: "border-box",
-                }}
-              />
+            <div class="stat">
+              <div class="label">Available</div>
+              <div class="value" id="available-papers"></div>
             </div>
           </div>
         </div>
-
-        {!ready() ? (
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 16,
-              padding: 14,
-              marginBottom: 16,
-            }}
-          >
-            Fill in the two Supabase constants at the top of the file.
+        <div class="card">
+          <h2>Claim a paper</h2>
+          <div class="field">
+            <label for="name">Name</label>
+            <input id="name" placeholder="Your full name" />
           </div>
-        ) : null}
-
-        {status ? (
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 16,
-              padding: 14,
-              marginBottom: 16,
-            }}
-          >
-            <strong>Status:</strong> {status}
+          <div class="field">
+            <label for="code">Add code</label>
+            <input id="code" type="password" placeholder="" />
           </div>
-        ) : null}
-
-        {DATE_ORDER.map((date) => {
-          const papersForDate = PAPERS.filter((paper) => paper.date === date);
-
-          return (
-            <div
-              key={date}
-              style={{
-                background: "#ffffff",
-                border: "1px solid #e2e8f0",
-                borderRadius: 16,
-                padding: 20,
-                marginBottom: 16,
-              }}
-            >
-              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>{date}</div>
-
-              <div style={{ display: "grid", gap: 12 }}>
-                {papersForDate.map((paper) => {
-                  const claim = claimsBySlot.get(paper.id);
-                  const taken = Boolean(claim);
-
-                  return (
-                    <div
-                      key={paper.id}
-                      style={{
-                        border: "1px solid #e2e8f0",
-                        borderRadius: 14,
-                        padding: 16,
-                        display: "grid",
-                        gridTemplateColumns: "1fr auto",
-                        gap: 16,
-                        alignItems: "start",
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 8,
-                            alignItems: "center",
-                            flexWrap: "wrap",
-                            marginBottom: 8,
-                          }}
-                        >
-                          <span style={pillStyle("#ffffff")}>Paper {paper.number}</span>
-                          <span style={pillStyle(taken ? "#e5e7eb" : "#dcfce7")}>{taken ? "Taken" : "Available"}</span>
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 20,
-                            fontWeight: 600,
-                            lineHeight: 1.35,
-                            marginBottom: 6,
-                          }}
-                        >
-                          {paper.title}
-                        </div>
-                        <div style={{ fontSize: 14, color: "#475569", marginBottom: 8 }}>
-                          {paper.citation}
-                        </div>
-                        <div style={{ marginBottom: 10 }}>
-                          <a
-                            href={paper.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ color: "#1d4ed8", textDecoration: "underline" }}
-                          >
-                            Open paper
-                          </a>
-                        </div>
-                        <div style={{ fontSize: 14 }}>
-                          <strong>Claimed by:</strong> {claim ? claim.student_name : "—"}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => claimPaper(paper)}
-                        disabled={taken || submittingId === paper.id || loading}
-                        style={{
-                          padding: "10px 14px",
-                          borderRadius: 12,
-                          border: "1px solid #cbd5e1",
-                          background: taken || submittingId === paper.id || loading ? "#e2e8f0" : "#0f172a",
-                          color: taken || submittingId === paper.id || loading ? "#475569" : "#ffffff",
-                          cursor: taken || submittingId === paper.id || loading ? "not-allowed" : "pointer",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {taken ? "Taken" : submittingId === paper.id ? "Claiming..." : "Claim this paper"}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        </div>
       </div>
+
+      <div id="status" class="card status" style="display:none"></div>
+      <div id="schedule"></div>
     </div>
-  );
-}
+
+    <script>
+      const SUPABASE_URL = "https://zdizzifeuqzrqxjxasen.supabase.co";
+      const SUPABASE_ANON_KEY = "sb_publishable_xhDks_hxq2ouhD2-8WhkIg_SYZfAmSp";
+      const ACCESS_CODE = "FGS_IS_FUN";
+
+      const PAPERS = [
+        { id: "2026-04-29-1", date: "April 29, 2026", number: 1, title: "A New Algorithm for Optimal 2-Constraint Satisfaction and Its Implications", citation: "R. Williams. ICALP 2004 / TCS 2005.", link: "https://eccc.weizmann.ac.il/eccc-reports/2004/TR04-032/index.html" },
+        { id: "2026-04-29-2", date: "April 29, 2026", number: 2, title: "Edit Distance Cannot Be Computed in Strongly Subquadratic Time (unless SETH is false)", citation: "A. Backurs, P. Indyk. STOC 2015.", link: "https://arxiv.org/abs/1412.0348" },
+        { id: "2026-05-06-1", date: "May 6, 2026", number: 3, title: "Subcubic Equivalences Between Path, Matrix, and Triangle Problems", citation: "V. Vassilevska Williams, R. Williams. FOCS 2010.", link: "https://people.csail.mit.edu/rrw/tria-mmult.pdf" },
+        { id: "2026-05-06-2", date: "May 6, 2026", number: 4, title: "Subcubic Equivalences Between Graph Centrality Problems, APSP and Diameter", citation: "A. Abboud, F. Grandoni, V. Vassilevska Williams. SODA 2015 / TALG 2022.", link: "https://people.idsia.ch/~grandoni/Pubblicazioni/AGV22talg.pdf" },
+        { id: "2026-05-13-1", date: "May 13, 2026", number: 5, title: "Tight Hardness for Shortest Cycles and Paths in Sparse Graphs", citation: "A. Lincoln, V. Vassilevska Williams, R. Williams. SODA 2018.", link: "https://arxiv.org/abs/1712.08147" },
+        { id: "2026-05-13-2", date: "May 13, 2026", number: 6, title: "On a Class of O(n^2) Problems in Computational Geometry", citation: "A. Gajentaan, M. Overmars. Computational Geometry, 1995.", link: "https://www.sciencedirect.com/science/article/pii/0925772195000222" },
+        { id: "2026-05-20-1", date: "May 20, 2026", number: 7, title: "Threesomes, Degenerates, and Love Triangles", citation: "A. Gronlund, S. Pettie. FOCS 2014.", link: "https://arxiv.org/abs/1404.0799" },
+        { id: "2026-05-20-2", date: "May 20, 2026", number: 8, title: "Why Walking the Dog Takes Time: Frechet Distance Has No Strongly Subquadratic Algorithms Unless SETH Fails", citation: "K. Bringmann. FOCS 2014.", link: "https://arxiv.org/abs/1404.1448" },
+        { id: "2026-05-27-1", date: "May 27, 2026", number: 9, title: "Fast Approximation Algorithms for the Diameter and Radius of Sparse Graphs", citation: "L. Roditty, V. Vassilevska Williams. STOC 2013.", link: "https://people.csail.mit.edu/virgi/diam.pdf" },
+        { id: "2026-05-27-2", date: "May 27, 2026", number: 10, title: "Matching Triangles and Basing Hardness on an Extremely Popular Conjecture", citation: "A. Abboud, V. Vassilevska Williams, H. Yu. STOC 2015.", link: "https://arxiv.org/abs/1504.01431" },
+        { id: "2026-06-03-1", date: "June 3, 2026", number: 11, title: "On Problems Equivalent to (min,+)-Convolution", citation: "Cygan, Mucha, Wegrzycki, Wlodarczyk. ICALP 2017.", link: "https://arxiv.org/abs/1702.07669" },
+        { id: "2026-06-03-2", date: "June 3, 2026", number: 12, title: "Towards Polynomial Lower Bounds for Dynamic Problems", citation: "M. Patrascu. STOC 2010.", link: "https://people.csail.mit.edu/mip/papers/dynlb/paper.pdf" },
+        { id: "2026-06-10-1", date: "June 10, 2026", number: 13, title: "Popular Conjectures Imply Strong Lower Bounds for Dynamic Problems", citation: "A. Abboud, V. Vassilevska Williams. FOCS 2014.", link: "https://arxiv.org/abs/1402.0054" },
+        { id: "2026-06-10-2", date: "June 10, 2026", number: 14, title: "Unifying and Strengthening Hardness for Dynamic Problems via the Online Matrix-Vector Multiplication Conjecture", citation: "M. Henzinger, S. Krinninger, D. Nanongkai, T. Saranurak. STOC 2015.", link: "https://arxiv.org/abs/1504.01799" },
+        { id: "2026-06-17-1", date: "June 17, 2026", number: 15, title: "If the Current Clique Algorithms Are Optimal, So Is Valiant Parser", citation: "A. Abboud, A. Backurs, V. Vassilevska Williams. FOCS 2015 / JACM 2018.", link: "https://arxiv.org/abs/1508.00151" },
+        { id: "2026-06-17-2", date: "June 17, 2026", number: 16, title: "Fast and Deterministic Constant Factor Approximation Algorithms for LCS Imply New Circuit Lower Bounds", citation: "A. Abboud, A. Rubinstein. ITCS 2018.", link: "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ITCS.2018.35" },
+        { id: "2026-06-24-1", date: "June 24, 2026", number: 17, title: "A Near-Linear Pseudopolynomial Time Algorithm for Subset Sum", citation: "K. Bringmann. SODA 2017.", link: "https://arxiv.org/abs/1610.04712" },
+        { id: "2026-06-24-2", date: "June 24, 2026", number: 18, title: "Hardness of Approximate Nearest Neighbor Search", citation: "A. Rubinstein. STOC 2018.", link: "https://arxiv.org/abs/1803.00904" },
+        { id: "2026-07-01-1", date: "July 1, 2026", number: 19, title: "Distributed PCP Theorems for Hardness of Approximation in P", citation: "A. Abboud, A. Rubinstein, R. Williams. FOCS 2017.", link: "https://arxiv.org/abs/1706.06407" },
+        { id: "2026-07-01-2", date: "July 1, 2026", number: 20, title: "Hardness of Approximation in P via Short Cycle Removal", citation: "A. Abboud, K. Bringmann, S. Khoury, O. Zamir. STOC 2022.", link: "https://arxiv.org/abs/2204.10465" },
+        { id: "2026-07-08-1", date: "July 8, 2026", number: 21, title: "More Consequences of Falsifying SETH and the Orthogonal Vectors Conjecture", citation: "A. Abboud, K. Bringmann, H. Dell, J. Nederlof. STOC 2018.", link: "https://arxiv.org/abs/1805.08554" },
+        { id: "2026-07-08-2", date: "July 8, 2026", number: 22, title: "Nondeterministic Extensions of the Strong Exponential Time Hypothesis and Consequences for Non-Reducibility", citation: "M. Carmosino, J. Gao, R. Impagliazzo, I. Mihajlin, R. Paturi, S. Schneider. ITCS 2016.", link: "https://arxiv.org/abs/1510.08565" }
+      ];
+
+      const DATE_ORDER = ["April 29, 2026","May 6, 2026","May 13, 2026","May 20, 2026","May 27, 2026","June 3, 2026","June 10, 2026","June 17, 2026","June 24, 2026","July 1, 2026","July 8, 2026"];
+
+      let claims = [];
+      let submittingId = "";
+
+      function apiUrl(path) { return `${SUPABASE_URL}/rest/v1/${path}`; }
+      async function fetchClaims() {
+        const response = await fetch(apiUrl("claims?select=slot_id,student_name,created_at"), {
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        if (!response.ok) throw new Error("Failed to load claims.");
+        return response.json();
+      }
+      async function insertClaim(slotId, studentName) {
+        const response = await fetch(apiUrl("claims"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            Prefer: "return=minimal"
+          },
+          body: JSON.stringify({ slot_id: slotId, student_name: studentName })
+        });
+        if (response.ok) return;
+        if (response.status === 409) throw new Error("That paper is already taken.");
+        throw new Error("Could not save claim.");
+      }
+      function setStatus(text) {
+        const el = document.getElementById("status");
+        if (!text) { el.style.display = "none"; el.textContent = ""; return; }
+        el.style.display = "block";
+        el.innerHTML = `<strong>Status:</strong> ${text}`;
+      }
+      function render() {
+        document.getElementById("total-papers").textContent = PAPERS.length;
+        document.getElementById("available-papers").textContent = PAPERS.length - claims.length;
+        const claimsBySlot = new Map(claims.map(c => [c.slot_id, c]));
+        const schedule = document.getElementById("schedule");
+        schedule.innerHTML = "";
+        DATE_ORDER.forEach((date) => {
+          const papersForDate = PAPERS.filter((paper) => paper.date === date);
+          const section = document.createElement("div");
+          section.className = "card";
+          section.style.marginBottom = "16px";
+          section.innerHTML = `<h3>${date}</h3><div class="papers"></div>`;
+          const papersEl = section.querySelector(".papers");
+          papersForDate.forEach((paper) => {
+            const claim = claimsBySlot.get(paper.id);
+            const taken = Boolean(claim);
+            const disabled = taken || submittingId === paper.id;
+            const row = document.createElement("div");
+            row.className = "paper";
+            row.innerHTML = `
+              <div>
+                <div class="badges">
+                  <span class="pill">Paper ${paper.number}</span>
+                  <span class="pill ${taken ? "taken" : "available"}">${taken ? "Taken" : "Available"}</span>
+                </div>
+                <div class="paper-title">${paper.title}</div>
+                <div class="citation">${paper.citation}</div>
+                <div class="linkrow"><a href="${paper.link}" target="_blank" rel="noreferrer">Open paper</a></div>
+                <div><strong>Claimed by:</strong> ${claim ? claim.student_name : "—"}</div>
+              </div>
+              <div><button ${disabled ? "disabled" : ""}>${taken ? "Taken" : submittingId === paper.id ? "Claiming..." : "Claim this paper"}</button></div>`;
+            const button = row.querySelector("button");
+            button.addEventListener("click", async () => {
+              const name = document.getElementById("name").value.trim();
+              const code = document.getElementById("code").value.trim();
+              if (!name) { setStatus("Enter your name first."); return; }
+              if (!code) { setStatus("Enter the code first."); return; }
+              if (code !== ACCESS_CODE) { setStatus("Wrong code."); return; }
+              try {
+                submittingId = paper.id;
+                setStatus("");
+                render();
+                await insertClaim(paper.id, name);
+                document.getElementById("name").value = "";
+                document.getElementById("code").value = "";
+                setStatus("Paper claimed.");
+                await load();
+              } catch (error) {
+                setStatus(error.message || "Could not save claim.");
+                await load();
+              } finally {
+                submittingId = "";
+                render();
+              }
+            });
+            papersEl.appendChild(row);
+          });
+          schedule.appendChild(section);
+        });
+      }
+      async function load() {
+        try { claims = await fetchClaims(); }
+        catch (error) { setStatus(error.message || "Failed to load claims."); }
+        render();
+      }
+      load();
+      window.setInterval(load, 10000);
+    </script>
+  </body>
+</html>
