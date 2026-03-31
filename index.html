@@ -72,7 +72,6 @@
     <script>
       const SUPABASE_URL = "https://zdizzifeuqzrqxjxasen.supabase.co";
       const SUPABASE_ANON_KEY = "sb_publishable_xhDks_hxq2ouhD2-8WhkIg_SYZfAmSp";
-      const ACCESS_CODE = "FGS_IS_FUN";
 
       const PAPERS = [
         { id: "2026-04-29-1", date: "April 29, 2026", number: 1, title: "A New Algorithm for Optimal 2-Constraint Satisfaction and Its Implications", citation: "R. Williams. ICALP 2004 / TCS 2005.", link: "https://eccc.weizmann.ac.il/eccc-reports/2004/TR04-032/index.html" },
@@ -112,20 +111,15 @@
         if (!response.ok) throw new Error("Failed to load claims.");
         return response.json();
       }
-      async function insertClaim(slotId, studentName) {
-        const response = await fetch(apiUrl("claims"), {
+      async function insertClaim(slotId, studentName, code) {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/claim-paper`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            Prefer: "return=minimal"
-          },
-          body: JSON.stringify({ slot_id: slotId, student_name: studentName })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slotId, studentName, code })
         });
         if (response.ok) return;
-        if (response.status === 409) throw new Error("That paper is already taken.");
-        throw new Error("Could not save claim.");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Could not save claim.");
       }
       function setStatus(text) {
         const el = document.getElementById("status");
@@ -170,12 +164,11 @@
               const code = document.getElementById("code").value.trim();
               if (!name) { setStatus("Enter your name first."); return; }
               if (!code) { setStatus("Enter the code first."); return; }
-              if (code !== ACCESS_CODE) { setStatus("Wrong code."); return; }
               try {
                 submittingId = paper.id;
                 setStatus("");
                 render();
-                await insertClaim(paper.id, name);
+                await insertClaim(paper.id, name, code);
                 document.getElementById("name").value = "";
                 document.getElementById("code").value = "";
                 setStatus("Paper claimed.");
