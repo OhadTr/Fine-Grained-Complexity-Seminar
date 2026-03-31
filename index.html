@@ -159,6 +159,10 @@
             <label for="name">Name</label>
             <input id="name" placeholder="Your full name" />
           </div>
+          <div class="field">
+            <label for="code">Add code</label>
+            <input id="code" placeholder="FGS_IS_FUN" />
+          </div>
         </div>
       </div>
 
@@ -169,6 +173,7 @@
     <script>
       const SUPABASE_URL = "https://zdizzifeuqzrqxjxasen.supabase.co";
       const SUPABASE_ANON_KEY = "sb_publishable_xhDks_hxq2ouhD2-8WhkIg_SYZfAmSp";
+      const ACCESS_CODE = "FGS_IS_FUN";
 
       const PAPERS = [
         { id: "2026-04-29-1", date: "April 29, 2026", number: 1, title: "A New Algorithm for Optimal 2-Constraint Satisfaction and Its Implications", citation: "R. Williams. ICALP 2004 / TCS 2005.", link: "https://eccc.weizmann.ac.il/eccc-reports/2004/TR04-032/index.html" },
@@ -283,8 +288,17 @@
             const button = row.querySelector("button");
             button.addEventListener("click", async () => {
               const name = document.getElementById("name").value.trim();
+              const code = document.getElementById("code").value.trim();
               if (!name) {
                 setStatus("Enter your name first.");
+                return;
+              }
+              if (!code) {
+                setStatus("Enter the code first.");
+                return;
+              }
+              if (code !== ACCESS_CODE) {
+                setStatus("Wrong code.");
                 return;
               }
               try {
@@ -293,6 +307,7 @@
                 render();
                 await insertClaim(paper.id, name);
                 document.getElementById("name").value = "";
+                document.getElementById("code").value = "";
                 setStatus("Paper claimed.");
                 await load();
               } catch (error) {
