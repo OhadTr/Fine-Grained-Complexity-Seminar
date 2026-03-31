@@ -95,13 +95,13 @@
         { id: "2026-07-01-1", date: "July 1, 2026", number: 19, title: "Distributed PCP Theorems for Hardness of Approximation in P", citation: "A. Abboud, A. Rubinstein, R. Williams. FOCS 2017.", link: "https://arxiv.org/abs/1706.06407" },
         { id: "2026-07-01-2", date: "July 1, 2026", number: 20, title: "Hardness of Approximation in P via Short Cycle Removal", citation: "A. Abboud, K. Bringmann, S. Khoury, O. Zamir. STOC 2022.", link: "https://arxiv.org/abs/2204.10465" },
         { id: "2026-07-08-1", date: "TBD", number: 21, title: "More Consequences of Falsifying SETH and the Orthogonal Vectors Conjecture", citation: "A. Abboud, K. Bringmann, H. Dell, J. Nederlof. STOC 2018.", link: "https://arxiv.org/abs/1805.08554" },
-        { id: "2026-07-08-2", date: "TBD", number: 22, title: "Nondeterministic Extensions of the Strong Exponential Time Hypothesis and Consequences for Non-Reducibility", citation: "M. Carmosino, J. Gao, R. Impagliazzo, I. Mihajlin, R. Paturi, S. Schneider. ITCS 2016.", link: "https://arxiv.org/abs/1510.08565" },
-        { id: "tbd-23", date: "TBD", number: 23, title: "On the Possibility of Faster SAT Algorithms", citation: "M. Patrascu, R. Williams. SODA 2010.", link: "https://people.csail.mit.edu/mip/papers/sat-lbs/paper.pdf" },
-        { id: "tbd-24", date: "TBD", number: 24, title: "Average-Case Fine-Grained Hardness", citation: "M. Ball, A. Rosen, M. Sabin, P. N. Vasudevan. STOC 2017.", link: "https://eprint.iacr.org/2017/202" }
+        { id: "2026-07-08-2", date: "TBD", number: 22, title: "Nondeterministic Extensions of the Strong Exponential Time Hypothesis and Consequences for Non-Reducibility", citation: "M. Carmosino, J. Gao, R. Impagliazzo, I. Mihajlin, R. Paturi, S. Schneider. ITCS 2016.", link: "https://arxiv.org/abs/1510.08565" }
       ];
+
       const DATE_ORDER = ["April 29, 2026","May 6, 2026","May 13, 2026","May 20, 2026","May 27, 2026","June 3, 2026","June 10, 2026","June 17, 2026","June 24, 2026","July 1, 2026","TBD"];
       let claims = [];
       let submittingId = "";
+
       async function fetchClaims() {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/claims?select=slot_id,student_name,created_at`, {
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
@@ -109,6 +109,7 @@
         if (!response.ok) throw new Error("Failed to load claims.");
         return response.json();
       }
+
       async function insertClaim(slotId, studentName, code) {
         const response = await fetch(`${SUPABASE_URL}/functions/v1/bright-responder`, {
           method: "POST",
@@ -119,18 +120,21 @@
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || "Could not save claim.");
       }
+
       function setStatus(text) {
         const el = document.getElementById("status");
         if (!text) { el.style.display = "none"; el.textContent = ""; return; }
         el.style.display = "block";
         el.innerHTML = `<strong>Status:</strong> ${text}`;
       }
+
       function render() {
         document.getElementById("total-papers").textContent = PAPERS.length;
         document.getElementById("available-papers").textContent = PAPERS.length - claims.length;
         const claimsBySlot = new Map(claims.map(c => [c.slot_id, c]));
         const schedule = document.getElementById("schedule");
         schedule.innerHTML = "";
+
         DATE_ORDER.forEach((date) => {
           const papersForDate = PAPERS.filter((paper) => paper.date === date);
           const section = document.createElement("div");
@@ -138,6 +142,7 @@
           section.style.marginBottom = "16px";
           section.innerHTML = `<h3>${date}</h3><div class="papers"></div>`;
           const papersEl = section.querySelector(".papers");
+
           papersForDate.forEach((paper) => {
             const claim = claimsBySlot.get(paper.id);
             const taken = Boolean(claim);
@@ -170,14 +175,17 @@
             });
             papersEl.appendChild(row);
           });
+
           schedule.appendChild(section);
         });
       }
+
       async function load() {
         try { claims = await fetchClaims(); }
         catch (error) { setStatus(error.message || "Failed to load claims."); }
         render();
       }
+
       load();
       window.setInterval(load, 10000);
     </script>
