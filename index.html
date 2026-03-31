@@ -71,8 +71,6 @@
 
     <script>
       const SUPABASE_URL = "https://zdizzifeuqzrqxjxasen.supabase.co";
-      const SUPABASE_ANON_KEY = "sb_publishable_xhDks_hxq2ouhD2-8WhkIg_SYZfAmSp";
-
       const PAPERS = [
         { id: "2026-04-29-1", date: "April 29, 2026", number: 1, title: "A New Algorithm for Optimal 2-Constraint Satisfaction and Its Implications", citation: "R. Williams. ICALP 2004 / TCS 2005.", link: "https://eccc.weizmann.ac.il/eccc-reports/2004/TR04-032/index.html" },
         { id: "2026-04-29-2", date: "April 29, 2026", number: 2, title: "Edit Distance Cannot Be Computed in Strongly Subquadratic Time (unless SETH is false)", citation: "A. Backurs, P. Indyk. STOC 2015.", link: "https://arxiv.org/abs/1412.0348" },
@@ -97,22 +95,18 @@
         { id: "2026-07-08-1", date: "July 8, 2026", number: 21, title: "More Consequences of Falsifying SETH and the Orthogonal Vectors Conjecture", citation: "A. Abboud, K. Bringmann, H. Dell, J. Nederlof. STOC 2018.", link: "https://arxiv.org/abs/1805.08554" },
         { id: "2026-07-08-2", date: "July 8, 2026", number: 22, title: "Nondeterministic Extensions of the Strong Exponential Time Hypothesis and Consequences for Non-Reducibility", citation: "M. Carmosino, J. Gao, R. Impagliazzo, I. Mihajlin, R. Paturi, S. Schneider. ITCS 2016.", link: "https://arxiv.org/abs/1510.08565" }
       ];
-
       const DATE_ORDER = ["April 29, 2026","May 6, 2026","May 13, 2026","May 20, 2026","May 27, 2026","June 3, 2026","June 10, 2026","June 17, 2026","June 24, 2026","July 1, 2026","July 8, 2026"];
-
       let claims = [];
       let submittingId = "";
-
-      function apiUrl(path) { return `${SUPABASE_URL}/rest/v1/${path}`; }
       async function fetchClaims() {
-        const response = await fetch(apiUrl("claims?select=slot_id,student_name,created_at"), {
-          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/claims?select=slot_id,student_name,created_at`, {
+          headers: { apikey: "sb_publishable_xhDks_hxq2ouhD2-8WhkIg_SYZfAmSp", Authorization: `Bearer sb_publishable_xhDks_hxq2ouhD2-8WhkIg_SYZfAmSp` }
         });
         if (!response.ok) throw new Error("Failed to load claims.");
         return response.json();
       }
       async function insertClaim(slotId, studentName, code) {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/claim-paper`, {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/bright-responder`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ slotId, studentName, code })
@@ -146,18 +140,7 @@
             const disabled = taken || submittingId === paper.id;
             const row = document.createElement("div");
             row.className = "paper";
-            row.innerHTML = `
-              <div>
-                <div class="badges">
-                  <span class="pill">Paper ${paper.number}</span>
-                  <span class="pill ${taken ? "taken" : "available"}">${taken ? "Taken" : "Available"}</span>
-                </div>
-                <div class="paper-title">${paper.title}</div>
-                <div class="citation">${paper.citation}</div>
-                <div class="linkrow"><a href="${paper.link}" target="_blank" rel="noreferrer">Open paper</a></div>
-                <div><strong>Claimed by:</strong> ${claim ? claim.student_name : "—"}</div>
-              </div>
-              <div><button ${disabled ? "disabled" : ""}>${taken ? "Taken" : submittingId === paper.id ? "Claiming..." : "Claim this paper"}</button></div>`;
+            row.innerHTML = `<div><div class="badges"><span class="pill">Paper ${paper.number}</span><span class="pill ${taken ? "taken" : "available"}">${taken ? "Taken" : "Available"}</span></div><div class="paper-title">${paper.title}</div><div class="citation">${paper.citation}</div><div class="linkrow"><a href="${paper.link}" target="_blank" rel="noreferrer">Open paper</a></div><div><strong>Claimed by:</strong> ${claim ? claim.student_name : "—"}</div></div><div><button ${disabled ? "disabled" : ""}>${taken ? "Taken" : submittingId === paper.id ? "Claiming..." : "Claim this paper"}</button></div>`;
             const button = row.querySelector("button");
             button.addEventListener("click", async () => {
               const name = document.getElementById("name").value.trim();
